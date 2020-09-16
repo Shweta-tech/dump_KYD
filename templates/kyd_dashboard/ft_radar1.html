@@ -1,0 +1,369 @@
+{% extends 'dashboard/dash_base.html' %}
+{% load static %}
+{% block feature_css %}
+<link rel="stylesheet" href="{% static 'kyd_dashboard/css/index.css' %}">
+<style>
+  p {
+    font-size: calc(40% + 0.5vw + 0.5vh);
+    font-weight: bold;
+  }
+
+  .form-check-label {
+    margin-top: 7px;
+    font-size: calc(50% + 0.5vw + 0.5vh);
+    padding-left: 15px;
+  }
+
+  .form-check-input {
+    margin-top: 0px;
+    width: calc(10% + 0.5vw + 0.7vh);
+    height: calc(5% + 0.5vw + 0.5vh);
+  }
+
+  .upt-b {
+    font-size: calc(35% + 0.5vw + 0.5vh);
+  }
+
+  .chart-container {
+    position: relative;
+    margin: auto;
+    width: 75vw;
+    height: 75vh;
+    font-size: calc(100% + 0.5vw + 0.5vh);
+  }
+</style>
+
+{% endblock %}
+
+{% block feature %}
+
+<script src="{% static 'kyd_dashboard/js/Chart.min.js' %}"></script>
+<script src="{% static 'kyd_dashboard/js/d3-scale-radial.js' %}"></script>
+
+
+<div class="row">
+  <div class="col-12 h-75">
+    <div class="heading text-center">Radar Diagram - Outcome Indicators
+    </div>
+  </div>
+</div>
+
+<div class="row text-center bg-info">
+  <button type="button" class="btn btn-outline-dark m-1" onclick="location.href=`{% url 'f3' dist_name %}`">Previous
+    Feature</button>
+  <button type="button" class="btn btn-outline-dark m-1" onclick="location.href=`{% url 'ftrdr2' dist_name %}`">Next
+    Feature</button>
+</div>
+
+<div class="row text-center mt-1">
+  <div class="col-12 mb-5">
+    <input type="text" id="monthSlider" name="somename" data-provide="slider"
+      data-slider-ticks="[0, 1, 2, 3, 4, 5]"
+      data-slider-ticks-labels='["Aug", "Sep", "Oct", "Nov", "Dec", "Jan"]'
+      data-slider-min="0" data-slider-max="5" data-slider-step="1" data-slider-value="0" data-slider-tooltip="hide">
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-10 chart-container mt-0">
+    <canvas id="myChart"></canvas>
+  </div>
+
+  <div class="col-2 text-left">
+    <p class="text-left">Select Project</p>
+    <form id="projectList">
+      <div class="form-check">
+        {% for project in projectList %}
+        <input type="checkbox" class="form-check-input" id="my{{project.project_n}}"
+          value="{{ project.project_n }}" /><label class="form-check-label">{{ project.project_n }}</label><br>
+        {% endfor %}
+        <input type="checkbox" class="form-check-input" id="myMH" value="Maharashtra" /><label
+          class="form-check-label">Maharashtra</label><br>
+        <button type="button" class="btn btn-primary btn-sm  mt-1 float-left upt-b" onclick="GetSelected()">Update
+          Chart</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block feature_js %}
+
+<script>
+
+  let chartStatData = [];
+
+  function filterCSV(csv, key, value) {
+    var result = [];
+    csv.forEach(function (val, idx, arr) {
+
+      if (val[key] == value) {
+
+        result.push(val)
+      }
+    })
+    return result;
+  }
+
+  const render = rdata => {
+    document.getElementById("myBestProject").checked = true;
+    document.getElementById("myDistrict").checked = true;
+    document.getElementById("myMH").checked = true;
+
+    var rdata2 = [];
+
+    for (var i = 0; i < rdata.length; i++) {
+      if (rdata[i].label == "BestProject" || rdata[i].label == "District" || rdata[i].label == "Maharashtra") {
+        rdata2.push(rdata[i]);
+      }
+    }
+
+    var ctx = document.getElementById('myChart').getContext('2d');
+
+    var chart = new Chart(ctx, {
+      // The type of chart we want to create
+      type: 'radar',
+      // The data for our dataset
+      data: {
+        // plugins: {
+        //   datalabels: {
+        //     font: function (context) {
+        //       var width = context.chart.width;
+        //       var height = context.chart.height;
+        //       var size = Math.round(10 % + 0.5 * width + 0.5 * height);
+        //       return {
+        //         weight: 'bold',
+        //         size: size
+        //       };
+        //     },
+        //     formatter: Math.round
+        //   }
+        // },
+        labels: ["Stunting (%)", "Underweight (%)", "Wasting (%)", "Low BirthWeight (%)", "Severly Stunting (%)", "Severly Wasted (%)"],
+        // pointLabelFontSize: 10,
+        // scaleFontSize: 160,
+        datasets: [rdata2[0], rdata2[1], rdata2[2]],
+      },
+
+      // Configuration options go here
+      options: {
+        // defaultFontSize: 120,
+        responsive: true,
+        maintainAspectRatio: false,
+        tooltips: {
+          mode: 'index',
+          callbacks: {
+            label: function (tooltipItem, data) {
+              return data.datasets[tooltipItem.datasetIndex].label + ' : ' + data.datasets[tooltipItem.datasetIndex].data[tooltipItem.index];
+            }
+          }
+        },
+
+        hover: {
+          mode: 'index',
+        },
+
+        scale: {
+          angleLines: {
+            display: true
+          },
+
+          ticks: {
+            reverse: true,
+            suggestedMin: 0,
+            suggestedMax: 100,
+            stepSize: 20
+          },
+
+          pointLabels: {
+            // fontColor: "black",
+            // fontSize: 16
+          }
+        }
+      }
+    });
+
+    makeviz = opt => {
+      console.log(opt.length);
+      var rdata1 = [];
+      for (var i = 0; i < chartStatData.length; i++) {
+        for (var j = 0; j < opt.length; j++) {
+          if (opt[j] == chartStatData[i].label) {
+            console.log(opt[j]);
+            rdata1.push(chartStatData[i]);
+          }
+        }
+      }
+      console.log(rdata1);
+      chart.data.datasets = [];
+      for (var i = 0; i < rdata1.length; i++) {
+        chart.data.datasets[i] = rdata1[i];
+        if (rdata1[i].label != "BestProject" && rdata1[i].label != "District" && rdata1[i].label != "Maharashtra") {
+          chart.data.datasets[i].borderColor = "red";
+        }
+      }
+      chart.update();
+    }
+  }
+
+  const monthwise = (data) => {
+    var aproperty = [];
+    var sproperty = [];
+    var oproperty = [];
+
+    data.forEach(d => {
+      var temp = {};
+      temp['project_n'] = d.project_n;
+      temp['stunting_percent'] = +d.stunting_percent;
+      temp['underweight_percent'] = +d.underweight_percent;
+      temp['wasting_percent'] = +d.wasting_percent;
+      temp['low_birth_weight_percent'] = +d.low_birth_weight_percent;
+      temp['svrly_stunting_percent'] = +d.svrly_stunting_percent;
+      temp['svr_wasting_percent'] = +d.svr_wasting_percent;
+
+      if (d.month_n == "Nov") {
+        aproperty.push(temp);
+      }
+      else if (d.month_n == "Dec") {
+        sproperty.push(temp);
+      } else if (d.month_n == "Jan") {
+        oproperty.push(temp)
+      }
+    })
+    var listdata = [
+      aproperty, sproperty, oproperty
+    ]
+    return listdata;
+  }
+
+  dataforchart = (data) => {
+    let mydata = {
+      data: {
+        //labels: ["wasting_percent", "stunting_percent", "underweight_percent", "Best Value"],
+        datasets: []
+      }
+    }
+
+    let mydataset = [];
+
+    mybordercolor = ['#0000FF', '#00FF00', '#FFFF00'];
+    let itr = 0;
+    let i = 0;
+    let mycolour;
+
+    data.forEach((d, itr) => {
+      let temp = {};
+      if (d.project_n == 'BestProject' || d.project_n == 'Maharashtra' || d.project_n == 'District') {
+        mycolour = mybordercolor[i]
+        i++;
+      }
+      else {
+        mycolour = 'Gray'
+      }
+
+      temp.label = d.project_n,
+        temp.borderColor = mycolour,
+        temp.pointBorderColor = 'Black',
+        temp.pointBackgroundColor = 'Black',
+        temp.pointHoverBorderColor = "rgba(179,181,198,1)",
+        temp.backgroundColor = "transparent",
+        temp.pointRadius = 5,
+        temp.pointHoverRadius = 10,
+        temp.pointHoverBackgroundColor = 'red'
+      temp.pointHitRadius = 1
+      temp.data = [d.stunting_percent, d.underweight_percent, d.wasting_percent, d.low_birth_weight_percent, d.svrly_stunting_percent, d.svr_wasting_percent]
+      mydataset.push(temp);
+    })
+    mydata.data.datasets = mydataset;
+    return mydataset;
+  }
+
+  data_from_django = {{ data | safe }};
+  var data = []
+  data_from_django.forEach(element => {
+    data.push(element.fields);
+  });
+
+  data.forEach(d => {
+    d.project_n = d.project_n;
+    d.stunting_percent = +d.stunting_percent;
+    d.underweight_percent = +d.underweight_percent;
+    d.wasting_percent = +d.wasting_percent;
+    d.low_birth_weight_percent = +d.low_birth_weight_percent;
+    d.svrly_stunting_percent = +d.svrly_stunting_percent;
+    d.svr_wasting_percent = +d.svr_wasting_percent;
+    d.month_n = d.month_n;
+  });
+
+  $(".month a").click(function () {
+    $(this).parents(".dropdown").find('.btn').html($(this).text() + ' <span class="selectedMonth"></span>');
+    $(this).parents(".dropdown").find('.btn').val($(this).data('value'));
+
+    var val = $(this).text();
+    mydata = filterCSV(data, 'month_n', val);
+    chartStatData = dataforchart(mydata);
+    console.log(chartStatData);
+    render(dataforchart(mydata));
+  });
+
+  const selectData = (val, monthwisesplit) => {
+    if (val == "November") {
+      return monthwisesplit[0];
+    } else if (val == "December") {
+      return monthwisesplit[1];
+    } else if (val == "January") {
+      return monthwisesplit[2]
+    }
+  }
+
+  $(function () {
+    //bind event
+    $(".month a").click(function () {
+      var valMonth = $(this).text();
+      $(this).parents('.dropdown').find('.dropdown-toggle').html(valMonth + ' <span class="selectedMonth"></span>');
+    });
+
+    //trigger event
+    $('.month a').first().trigger('click');
+    $(".category a").first().trigger('click');
+
+  });
+
+  function GetSelected() {
+    //Create an Array.
+    var selected = new Array();
+
+    //Reference the Table.
+    var projectList = document.getElementById("projectList");
+
+    //Reference all the CheckBoxes in Table.
+    var chks = projectList.getElementsByTagName("INPUT");
+
+    // Loop and push the checked CheckBox value in Array.
+    for (var i = 0; i < chks.length; i++) {
+      if (chks[i].checked) {
+        selected.push(chks[i].value);
+      }
+    }
+    //Display the selected CheckBox values.		
+    makeviz(selected);
+  };
+
+  var tickLabels = ["Aug", "Sep", "Oct", "Nov", "Dec", "Jan"]
+
+  $('#monthSlider').slider().on('slideStop', function (ev) {
+    var val = tickLabels[ev.value];
+    mydata = filterCSV(data, 'month_n', val);
+    chartStatData = dataforchart(mydata);
+    render(dataforchart(mydata));
+  });
+
+  monthSelect = tickLabels[$('#monthSlider').slider('getValue')]
+  augData = filterCSV(data, 'month_n', monthSelect);
+  chartStatData = dataforchart(augData);
+  render(dataforchart(augData));
+
+</script>
+
+{% endblock %}
